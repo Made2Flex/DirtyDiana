@@ -30,7 +30,7 @@ namespace DirtyDiana.Utilities
             if (terminal == null)
                 return false;
 
-            //Launch arguments for each terminal
+            // Launch arguments for each terminal
             string[] args = Environment.GetCommandLineArgs();
             string joinedArgs = string.Join(" ", args.Skip(1).Select(arg => "\"" + arg.Replace("\"", "\\\"") + "\""));
 
@@ -79,8 +79,15 @@ namespace DirtyDiana.Utilities
 
             try
             {
-                Process.Start(psi);
-                return true;
+                var proc = Process.Start(psi);
+
+                if (proc != null)
+                {
+                    TryFocusTerminal();
+                    return true;
+                }
+
+                return false;
             }
             catch
             {
@@ -88,10 +95,33 @@ namespace DirtyDiana.Utilities
             }
         }
 
-        // Helper to quote file path
         private static string QuoteCmd(string path)
         {
             return "\"" + path.Replace("\"", "\\\"") + "\"";
+        }
+
+        // try to focus the terminal window
+        private static void TryFocusTerminal()
+        {
+            try
+            {
+                if (!CommandExists("wmctrl"))
+                    return;
+
+                var psi = new ProcessStartInfo
+                {
+                    FileName = "wmctrl",
+                    Arguments = "-a :ACTIVE:",
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+
+                Process.Start(psi);
+            }
+            catch
+            {
+                // Ignore
+            }
         }
 
         // Checks if a command exists in the system's PATH
@@ -107,11 +137,14 @@ namespace DirtyDiana.Utilities
                     UseShellExecute = false,
                     CreateNoWindow = true
                 };
+
                 using var process = Process.Start(psi);
                 if (process == null)
                     return false;
+
                 string? output = process.StandardOutput.ReadLine();
                 process.WaitForExit();
+
                 return !string.IsNullOrEmpty(output);
             }
             catch

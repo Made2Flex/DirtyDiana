@@ -32,15 +32,17 @@ namespace DirtyDiana
 
         static void Main(string[] args)
         {
-            // Open terminal in linux
+            // Open terminal in Linux
             if (OperatingSystem.IsLinux())
             {
-                bool isUnderTerminal = Environment.GetEnvironmentVariable("TERM") != null
-                && !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("TERM"));
+                bool hasTerminal = !Console.IsInputRedirected &&
+                !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("TERM"));
 
-                if (!isUnderTerminal)
+                if (!hasTerminal)
                 {
-                    if (OpenTerminalLinux.TryOpenInTerminal(Environment.ProcessPath ?? System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName ?? string.Empty))
+                    string exePath = Environment.ProcessPath ?? string.Empty;
+
+                    if (OpenTerminalLinux.TryOpenInTerminal(exePath))
                     {
                         Environment.Exit(0);
                     }
@@ -407,7 +409,7 @@ namespace DirtyDiana
             [#3FA7D6]██████╔╝██║██║  ██║   ██║      ██║   ██████╔╝██║██║  ██║██║ ╚████║██║  ██║[/]
             [#76C7F2]╚═════╝ ╚═╝╚═╝  ╚═╝   ╚═╝      ╚═╝   ╚═════╝ ╚═╝╚═╝  ╚═╝╚═╝  ╚═══╝╚═╝  ╚═╝[/]
 
-            [#1E81B0]────────────────────────────────────────────────────────────────v0.34.5-gn[/]
+            [#1E81B0]────────────────────────────────────────────────────────────────v0.34.6-gn[/]
             ──────────────────Xbox 360 [#FF7200]BadUpdate[/] USB Builder for Linux────────────────
             [#848589]                         ───  By Made2Flex  ───                           [/]
             [#1E81B0]──────────────────────────────────────────────────────────────────────────[/]

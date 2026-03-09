@@ -15,7 +15,7 @@ namespace DirtyDiana.Utilities
             if (string.IsNullOrWhiteSpace(exePath) || !System.IO.File.Exists(exePath))
                 return false;
 
-            string[] terminals = { "xfce4-terminal", "gnome-terminal", "konsole", "xterm" };
+            string[] terminals = { "x-terminal-emulator", "xfce4-terminal", "gnome-terminal", "konsole", "xterm" };
             string? terminal = null;
 
             foreach (var term in terminals)
@@ -30,7 +30,7 @@ namespace DirtyDiana.Utilities
             if (terminal == null)
                 return false;
 
-            // Build launch arguments for each terminal
+            //Launch arguments for each terminal
             string[] args = Environment.GetCommandLineArgs();
             string joinedArgs = string.Join(" ", args.Skip(1).Select(arg => "\"" + arg.Replace("\"", "\\\"") + "\""));
 
@@ -51,7 +51,7 @@ namespace DirtyDiana.Utilities
                 psi = new ProcessStartInfo
                 {
                     FileName = "xfce4-terminal",
-                    Arguments = $"--hold -e \"{QuoteCmd(exePath)} {joinedArgs}\"",
+                    Arguments = $"-e \"{QuoteCmd(exePath)} {joinedArgs}\"",
                     UseShellExecute = false,
                     WorkingDirectory = Environment.CurrentDirectory
                 };
@@ -61,7 +61,7 @@ namespace DirtyDiana.Utilities
                 psi = new ProcessStartInfo
                 {
                     FileName = "konsole",
-                    Arguments = $"--hold -e {QuoteCmd(exePath)} {joinedArgs}",
+                    Arguments = $"-e {QuoteCmd(exePath)} {joinedArgs}",
                     UseShellExecute = false,
                     WorkingDirectory = Environment.CurrentDirectory
                 };
@@ -71,7 +71,7 @@ namespace DirtyDiana.Utilities
                 psi = new ProcessStartInfo
                 {
                     FileName = "xterm",
-                    Arguments = $"-hold -e {QuoteCmd(exePath)} {joinedArgs}",
+                    Arguments = $"-e {QuoteCmd(exePath)} {joinedArgs}",
                     UseShellExecute = false,
                     WorkingDirectory = Environment.CurrentDirectory
                 };
@@ -88,7 +88,7 @@ namespace DirtyDiana.Utilities
             }
         }
 
-        // Helper to quote a file path for safe shell usage
+        // Helper to quote file path
         private static string QuoteCmd(string path)
         {
             return "\"" + path.Replace("\"", "\\\"") + "\"";

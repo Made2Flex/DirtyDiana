@@ -32,6 +32,26 @@ namespace DirtyDiana
 
         static void Main(string[] args)
         {
+            // Open terminal in linux
+            if (OperatingSystem.IsLinux())
+            {
+                bool isUnderTerminal = Environment.GetEnvironmentVariable("TERM") != null
+                && !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("TERM"));
+
+                if (!isUnderTerminal)
+                {
+                    if (OpenTerminalLinux.TryOpenInTerminal(Environment.ProcessPath ?? System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName ?? string.Empty))
+                    {
+                        Environment.Exit(0);
+                    }
+                    else
+                    {
+                        Console.WriteLine("[!] Could not open a terminal emulator. Please run this program from a terminal.");
+                        Environment.Exit(1);
+                    }
+                }
+            }
+
             ClearConsole();
 
             while (true)
@@ -43,31 +63,6 @@ namespace DirtyDiana
                 {
                     AnsiConsole.Clear();
                     Environment.Exit(0);
-                }
-
-                // TODO: This Needs fixing as it does nothing when double clicked on Linux.
-                // If running on Linux and not in a terminal, try to reopen in terminal
-                if (OperatingSystem.IsLinux())
-                {
-                    // Check the environment for a terminal
-                    bool isUnderTerminal = Environment.GetEnvironmentVariable("TERM") != null
-                        && !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("TERM"));
-
-                    bool hasParent = Environment.GetEnvironmentVariable("PPID") != null;
-
-                    if (!isUnderTerminal)
-                    {
-                        // Attempt to reopen
-                        if (OpenTerminalLinux.TryOpenInTerminal(Environment.ProcessPath ?? System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName ?? string.Empty))
-                        {
-                            Environment.Exit(0);
-                        }
-                        else
-                        {
-                            Console.WriteLine("[!] Could not open a terminal emulator. Please run this program from a terminal.");
-                            Environment.Exit(1);
-                        }
-                    }
                 }
 
                 //Just give me homebrew!
@@ -401,7 +396,7 @@ namespace DirtyDiana
             [#3FA7D6]██████╔╝██║██║  ██║   ██║      ██║   ██████╔╝██║██║  ██║██║ ╚████║██║  ██║[/]
             [#76C7F2]╚═════╝ ╚═╝╚═╝  ╚═╝   ╚═╝      ╚═╝   ╚═════╝ ╚═╝╚═╝  ╚═╝╚═╝  ╚═══╝╚═╝  ╚═╝[/]
 
-            [#1E81B0]────────────────────────────────────────────────────────────────v0.34.3-gn[/]
+            [#1E81B0]────────────────────────────────────────────────────────────────v0.34.4-gn[/]
             ──────────────────Xbox 360 [#FF7200]BadUpdate[/] USB Builder for Linux────────────────
             [#848589]                         ───  By Made2Flex  ───                           [/]
             [#1E81B0]──────────────────────────────────────────────────────────────────────────[/]

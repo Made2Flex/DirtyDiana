@@ -81,7 +81,7 @@ DirtyDiana will detect `Aurora.xex` as the entry point and patch it accordingly.
 1. Clone the repo: https://github.com/Made2Flex/DirtyDiana
 2. cd into DirtyDiana
 3. Run the provided script in the root folder
-The final executable will be placed in Desktop/DirtyDiana
+4. The final executable will be placed in Desktop/DirtyDiana
 
 or
 

@@ -1,0 +1,12 @@
+﻿CreateFileW
+WriteFile
+SetFilePointer
+DeviceIoControl
+CloseHandle
+VirtualAlloc
+VirtualFree
+SetVolumeLabelW
+struct GUID
+DISK_GEOMETRY
+PARTITION_INFORMATION
+PARTITION_INFORMATION_EX

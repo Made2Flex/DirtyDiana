@@ -85,17 +85,14 @@ DirtyDiana will detect `Aurora.xex` as the entry point and patch it accordingly.
 
 or
 
-install dotnet-sdk-8.0 or its runtime
-run:
-dotnet restore DirtyDiana/DirtyDiana.csproj
-#the above cmd is sometimes needed when building for the first time.
-then run:
+1. install dotnet-sdk-8.0 or its runtime
+2. run: dotnet restore DirtyDiana/DirtyDiana.csproj
+3. the above cmd is sometimes needed when building for the first time.
+4. run: dotnet build DirtyDiana/DirtyDiana.csproj \
+        -c "$CONFIG" \
+        --no-restore
 
-dotnet build DirtyDiana/DirtyDiana.csproj \
--c "$CONFIG" \
---no-restore
-
-followed by:
+5. followed by:
 dotnet publish DirtyDiana/DirtyDiana.csproj \
         -c "$CONFIG" \
         -r "$RUNTIME" \

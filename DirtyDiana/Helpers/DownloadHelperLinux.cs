@@ -24,6 +24,10 @@ namespace DirtyDiana.Helpers
                 ("shutterbug2000", "ABadAvatar")
             };
 
+            AnsiConsole.MarkupLine(
+                Markup.Escape("[+] Beginning download Process..")
+            );
+
             foreach (var (owner, repo) in repos)
             {
                 try

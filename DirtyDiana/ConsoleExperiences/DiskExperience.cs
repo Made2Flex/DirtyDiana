@@ -2,6 +2,7 @@ using Spectre.Console;
 using DirtyDiana.Models;
 using DirtyDiana.Helpers;
 using DirtyDiana.Formatter;
+using DirtyDiana.Utilities;
 using System.Runtime.InteropServices; // portability
 
 namespace DirtyDiana
@@ -43,34 +44,16 @@ namespace DirtyDiana
                     Markup.Escape("[-] Automatic formatting is currently only supported on Windows.")
                 );
 
-                bool alreadyFormatted = AnsiConsole.Prompt(
-                    new TextPrompt<bool>("[#FF7200][[!]][/] Has this USB drive already been formatted to FAT32?")
-                    .AddChoice(true)
-                    .AddChoice(false)
-                    .DefaultValue(false)
-                    .ChoicesStyle(GreenStyle)
-                    .DefaultValueStyle(OrangeStyle)
-                    .WithConverter(choice => choice ? "y" : "n")
+                AnsiConsole.MarkupLine(
+                    Markup.Escape("[+] Beginning download Process..")
                 );
 
-                if (!alreadyFormatted)
+                var check = UsbCompatibilityChecker.Check(disk.DriveLetter);
+
+                if (!check.IsFat32)
                 {
                     AnsiConsole.MarkupLine(
-                        Markup.Escape("[*] Please format the drive to FAT32 first, then run this program again.")
-                    );
-                    Environment.Exit(1);
-                }
-
-                // Verify filesystem
-                string fsType = DiskHelperUnix.GetFilesystemType(disk.DriveLetter);
-
-                if (string.IsNullOrWhiteSpace(fsType) ||
-                    !(string.Equals(fsType, "vfat", StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(fsType, "fat32", StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(fsType, "msdos", StringComparison.OrdinalIgnoreCase)))
-                {
-                    AnsiConsole.MarkupLine(
-                        Markup.Escape($"[!] Detected filesystem: {fsType}. FAT32 is required.")
+                        Markup.Escape($"[!] Detected filesystem: {check.FileSystem}. FAT32 is required.")
                     );
                     Environment.Exit(1);
                 }

@@ -102,24 +102,27 @@ namespace DirtyDiana
 
                 AnsiConsole.MarkupLine($"[italic #FFAC4D]Selected USB target: {TargetDriveLetter}[/]");
 
-                // Check path
                 if (!Directory.Exists(TargetDriveLetter))
                 {
                     AnsiConsole.MarkupLine($"[italic red][[!]] Target drive path does not exist: {TargetDriveLetter}[/]");
                     Environment.Exit(1);
                 }
 
-                try
+                // Run compatibility check
+                var report = UsbCompatibilityChecker.Check(TargetDriveLetter);
+
+                UsbCompatibilityChecker.PrintCheck(report);
+
+                if (!report.Writable)
                 {
-                    string testFile = Path.Combine(TargetDriveLetter, ".write_test");
-                    File.WriteAllText(testFile, "test");
-                    File.Delete(testFile);
-                    AnsiConsole.MarkupLine($"[italic #FFAC4D]Target drive is writable[/]");
+                    AnsiConsole.MarkupLine("[red][[!]] Target drive is not writable. Please select another drive.[/]");
+                    Console.ReadKey();
+                    Environment.Exit(1);
                 }
-                catch (Exception ex)
+
+                if (!report.EnoughFreeSpace)
                 {
-                    AnsiConsole.MarkupLine($"[italic red][[!]] Target drive is NOT writable: {ex.Message}[/]");
-                    Console.WriteLine("\nPress any key to exit...");
+                    AnsiConsole.MarkupLine("[red][[!]] Target drive does not have enough free space. Please select another drive.[/]");
                     Console.ReadKey();
                     Environment.Exit(1);
                 }
@@ -380,6 +383,14 @@ namespace DirtyDiana
             }, priority);
         }
 
+        static void PrintCheck(bool ok, string text)
+        {
+            if (ok)
+                AnsiConsole.MarkupLine($"[#76B900]✓[/] {text}");
+            else
+                AnsiConsole.MarkupLine($"[yellow]⚠[/] {text}");
+        }
+
         static void WriteHomebrewLog(int count)
         {
             string logPath = Path.Combine(TargetDriveLetter, "info.txt");
@@ -439,17 +450,21 @@ namespace DirtyDiana
                 return;
             }
 
-            try
+            // Run compatibility check
+            var report = UsbCompatibilityChecker.Check(TargetDriveLetter);
+
+            UsbCompatibilityChecker.PrintCheck(report);
+
+            if (!report.Writable)
             {
-                string testFile = Path.Combine(TargetDriveLetter, ".write_test");
-                File.WriteAllText(testFile, "test");
-                File.Delete(testFile);
-                AnsiConsole.MarkupLine($"[italic #FFAC4D]Target drive is writable ✅[/]");
+                AnsiConsole.MarkupLine("[red][[!]] Target drive is not writable. Please select another drive.[/]");
+                Console.ReadKey();
+                Environment.Exit(1);
             }
-            catch (Exception ex)
+
+            if (!report.EnoughFreeSpace)
             {
-                AnsiConsole.MarkupLine($"[italic red][[!]] Target drive is NOT writable: {ex.Message}[/]");
-                Console.WriteLine("\nPress any key to exit...");
+                AnsiConsole.MarkupLine("[red][[!]] Target drive does not have enough free space. Please select another drive.[/]");
                 Console.ReadKey();
                 Environment.Exit(1);
             }

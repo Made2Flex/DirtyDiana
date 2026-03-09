@@ -4,9 +4,8 @@
 # DirtyDiana Linux Build Script
 # ============================================================
 
-
-
 set -Eeuo pipefail
+
 
 VERSION="0.4.1"
 AUTHOR=TWFkZTJGbGV4
@@ -55,7 +54,6 @@ clear_screen() {
 # Determine package managers
 # ------------------------------------------------------------
 pkg_mgrs() {
-    # Determine package manager for Arch, Debian, MacOS
     if command -v pacman >/dev/null 2>&1; then
         echo "arch"
     elif command -v apt-get >/dev/null 2>&1; then
@@ -345,7 +343,6 @@ check_log() {
         } >> "$LOG_PATH"
     fi
 
-    # Sanity check
     if [ ! -w "$LOG_PATH" ]; then
         echo "[ERROR] Log file not writable: $LOG_PATH"
         echo "Exiting.."

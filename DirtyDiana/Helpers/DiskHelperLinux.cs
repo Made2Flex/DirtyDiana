@@ -11,7 +11,6 @@ namespace DirtyDiana.Helpers
         {
             var disks = new List<DiskInfo>();
 
-            // Common Linux removable media mount locations
             string[] mountRoots = new[]
             {
                 "/media",
@@ -20,15 +19,52 @@ namespace DirtyDiana.Helpers
 
             foreach (var root in mountRoots)
             {
-                if (!Directory.Exists(root))
-                    continue;
+                string[] userDirs;
 
-                foreach (var userDir in Directory.GetDirectories(root))
+                try
                 {
-                    foreach (var mountDir in Directory.GetDirectories(userDir))
+                    if (!Directory.Exists(root))
+                        continue;
+
+                    userDirs = Directory.GetDirectories(root);
+                }
+                catch (Exception ex) when (
+                    ex is UnauthorizedAccessException ||
+                    ex is IOException
+                )
+                {
+                    // Skip root mount point if we cannot list it
+                    continue;
+                }
+
+                foreach (var userDir in userDirs)
+                {
+                    string[] mountDirs;
+
+                    try
+                    {
+                        mountDirs = Directory.GetDirectories(userDir);
+                    }
+                    catch (Exception ex) when (
+                        ex is UnauthorizedAccessException ||
+                        ex is IOException
+                    )
+                    {
+                        // Skip user dir if we cannot enumerate it
+                        continue;
+                    }
+
+                    foreach (var mountDir in mountDirs)
                     {
                         try
                         {
+                            if (!Directory.Exists(mountDir))
+                                continue;
+
+                            // Prevent duplicates
+                            if (disks.Exists(d => d.DriveLetter == mountDir))
+                                continue;
+
                             var driveInfo = new DriveInfo(mountDir);
 
                             long totalSize = driveInfo.TotalSize;
@@ -36,16 +72,22 @@ namespace DirtyDiana.Helpers
 
                             disks.Add(new DiskInfo(
                                 driveLetter: mountDir,
-                                type: "Fixed",
+                                type: "Removable",
                                 totalSize: totalSize,
                                 volumeLabel: Path.GetFileName(mountDir),
-                                                   availableFreeSpace: availableFreeSpace,
-                                                   diskNumber: int.MaxValue
+                                availableFreeSpace: availableFreeSpace,
+                                diskNumber: int.MaxValue // Unix mounts do not expose disk index
                             ));
                         }
-                        catch
+                        catch (Exception ex) when (
+                            ex is UnauthorizedAccessException ||
+                            ex is IOException ||
+                            ex is ArgumentException ||
+                            ex is DriveNotFoundException
+                        )
                         {
-                            // Skip inaccessible mounts
+                            // Skip inaccessible or invalid mounts
+                            continue;
                         }
                     }
                 }
@@ -66,7 +108,11 @@ namespace DirtyDiana.Helpers
                 var drive = new DriveInfo(mountPoint);
                 return drive.DriveFormat;
             }
-            catch
+            catch (Exception ex) when (
+                ex is UnauthorizedAccessException ||
+                ex is IOException ||
+                ex is ArgumentException
+            )
             {
                 return string.Empty;
             }

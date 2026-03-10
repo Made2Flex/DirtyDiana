@@ -1,7 +1,6 @@
 # ============================================================
 # DirtyDiana Windows Build Script
 # ============================================================
-# (c) Made2Flex <https://github.com/Made2Flex/DirtyDiana>
 
 
 # Warn if ran from cmd line and not powershell
@@ -118,15 +117,18 @@ if (-not (Test-Path $targetDir)) {
     New-Item -ItemType Directory -Path $targetDir | Out-Null
 }
 
-# Move all contents from publish directory to Desktop\DirtyDiana
 $publishDir = Join-Path $PSScriptRoot "publish"
 
 if (Test-Path $publishDir) {
-    Get-ChildItem -Path $publishDir -Recurse | ForEach-Object {
-        $dest = Join-Path $targetDir $_.Name
-        Move-Item -Path $_.FullName -Destination $dest -Force
+    $exe = Get-ChildItem -Path $publishDir -Filter "*.exe" -Recurse | Select-Object -First 1
+    if ($exe) {
+        $dest = Join-Path $targetDir $exe.Name
+        Move-Item -Path $exe.FullName -Destination $dest -Force
+        Write-Host "Published executable '$($exe.Name)' moved to $targetDir"
+    } else {
+        Write-Error "Executable not found in publish directory."
+        exit 1
     }
-    Write-Host "Published binaries moved to $targetDir"
 } else {
     Write-Error "Publish directory not found at $publishDir"
     exit 1

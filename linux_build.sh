@@ -7,7 +7,7 @@
 set -Eeuo pipefail
 
 
-VERSION="0.4.1"
+VERSION="0.5.1"
 AUTHOR=TWFkZTJGbGV4
 
 SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
@@ -69,67 +69,114 @@ pkg_mgrs() {
 # Dependancy array
 # ------------------------------------------------------------
 deps() {
-    # Please note "wine" is needed if patching is desired under linux.
-    # Ex:
-    # echo "dotnet-sdk-8.0"
-    # echo "wine"
-    echo "dotnet-sdk-8.0"
+    case "$(pkg_mgrs)" in
+        "arch")
+            echo "dotnet-sdk"
+            echo "clang"
+            echo "gcc"
+            echo "zlib"
+            echo "openssl"
+            ;;
+        "debian")
+            echo "dotnet-sdk-8.0"
+            echo "build-essential"
+            echo "clang"
+            echo "zlib1g-dev"
+            echo "libssl-dev"
+            ;;
+        "macos")
+            echo "dotnet-sdk"
+            ;;
+    esac
 }
 
 # ------------------------------------------------------------
 # Utility function to install dependancies
 # ------------------------------------------------------------
-isntall_deps() {
+install_deps() {
+
     local pkgmgr
     pkgmgr=$(pkg_mgrs)
+    local missing=()
 
     for dep in $(deps); do
         case "$pkgmgr" in
             "arch")
                 if ! pacman -Qi "$dep" >/dev/null 2>&1; then
-                    # Enable the 'extra' repo
-                    if ! grep -Pzo "\[extra\][^\[]+?^\s*Include" /etc/pacman.conf | grep -q "Server"; then
-                        log_me "INFO" "Enabling [extra] repository in /etc/pacman.conf."
-                        sudo sed -i '/\[extra\]/,/^$/ s/^#\s*\(Include\|Server\)/\1/' /etc/pacman.conf
-                        sudo pacman -Sy
-                    fi
-                    log_me "INFO" "Installing $dep via pacman."
-                    sudo pacman -Sy --noconfirm "$dep"
+                    missing+=("$dep")
                 else
                     log_me "INFO" "$dep is already installed (pacman)."
                 fi
                 ;;
             "debian")
                 if ! dpkg -s "$dep" >/dev/null 2>&1; then
-                    log_me "INFO" "Installing $dep via apt-get."
-                    if ! grep -qi microsoft /etc/apt/sources.list /etc/apt/sources.list.d/* 2>/dev/null; then
-                        wget https://packages.microsoft.com/config/ubuntu/$(lsb_release -rs)/packages-microsoft-prod.deb -O packages-microsoft-prod.deb || true
-                        sudo dpkg -i packages-microsoft-prod.deb || true
-                        rm -f packages-microsoft-prod.deb
-                        sudo apt-get update
-                    fi
-                    sudo apt-get install -y apt-transport-https
-                    sudo apt-get update
-                    sudo apt-get install -y "$dep"
+                    missing+=("$dep")
                 else
                     log_me "INFO" "$dep is already installed (apt)."
                 fi
                 ;;
             "macos")
-                if ! brew list --cask | grep -q "dotnet-sdk"; then
-                    log_me "INFO" "Installing dotnet-sdk via brew."
-                    brew install --cask dotnet-sdk
+                if ! brew list --cask "$dep" >/dev/null 2>&1 && ! brew list "$dep" >/dev/null 2>&1; then
+                    missing+=("$dep")
                 else
-                    log_me "INFO" "dotnet-sdk (brew) is already installed."
+                    log_me "INFO" "$dep is already installed (brew)."
                 fi
-                ;;
-            *)
-                log_me "ERROR" "Unsupported or unknown package manager. Cannot install dependencies automatically."
-                echo "[ERROR] Unsupported or unknown package manager. Cannot install dependencies automatically."
-                exit 1
                 ;;
         esac
     done
+
+    # Nothing to install
+    if [ ${#missing[@]} -eq 0 ]; then
+        log_me "INFO" "All dependencies already installed."
+        return
+    fi
+
+    log_me "INFO" "Missing dependencies: ${missing[*]}"
+
+    case "$pkgmgr" in
+
+        "arch")
+
+            # Enable extra repo if needed
+            if ! grep -Pzo "\[extra\][^\[]+?^\s*Include" /etc/pacman.conf | grep -q "Server"; then
+                log_me "INFO" "Enabling [extra] repository in /etc/pacman.conf."
+                sudo sed -i '/\[extra\]/,/^$/ s/^#\s*\(Include\|Server\)/\1/' /etc/pacman.conf
+            fi
+
+            log_me "INFO" "Installing dependencies via pacman."
+            sudo pacman -Sy --needed --noconfirm "${missing[@]}"
+            ;;
+
+        "debian")
+
+            if ! grep -qi microsoft /etc/apt/sources.list /etc/apt/sources.list.d/* 2>/dev/null; then
+                log_me "INFO" "Adding Microsoft package repository."
+                wget https://packages.microsoft.com/config/ubuntu/$(lsb_release -rs)/packages-microsoft-prod.deb -O packages-microsoft-prod.deb || true
+                sudo dpkg -i packages-microsoft-prod.deb || true
+                rm -f packages-microsoft-prod.deb
+            fi
+
+            log_me "INFO" "Updating apt repository."
+            sudo apt-get update
+
+            log_me "INFO" "Installing dependencies via apt."
+            sudo apt-get install -y "${missing[@]}"
+            ;;
+
+        "macos")
+
+            log_me "INFO" "Installing dependencies via brew."
+            brew install --cask "${missing[@]}"
+            ;;
+
+        *)
+
+            log_me "ERROR" "Unsupported or unknown package manager."
+            echo "[ERROR] Unsupported or unknown package manager."
+            exit 1
+            ;;
+
+    esac
 }
 
 # ------------------------------------------------------------
@@ -160,7 +207,7 @@ pre_flight() {
 
         case "$answer_pf" in
             y|yes)
-                isntall_deps
+                install_deps
                 ;;
             *)
                 echo "[!] Please install dependencies manually and re-run the script."

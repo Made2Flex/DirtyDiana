@@ -44,10 +44,6 @@ namespace DirtyDiana
                     Markup.Escape("[-] Automatic formatting is currently only supported on Windows.")
                 );
 
-                AnsiConsole.MarkupLine(
-                    Markup.Escape("[+] Beginning download Process..")
-                );
-
                 var check = UsbCompatibilityChecker.Check(disk.DriveLetter);
 
                 if (!check.IsFat32)

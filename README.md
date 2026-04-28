@@ -42,7 +42,7 @@ Modifications in this fork are [©Made2Flex](https://github.com/Made2Flex/DirtyD
 3. **Download Files:** DirtyDiana will fetch the required exploit files or let you specify an existing location.
 4. **Extract Files:** DirtyDiana will automatically extract everything needed.
 5. **Select default program**: DirtyDiana will prompt you to choose a program that BadUpdate will try and invoke, being either [FreeMyXe](https://github.com/FreeMyXe/FreeMyXe), or [XeUnshackle](https://github.com/Byrom90/XeUnshackle)
-6. **Select default exploit**: DirtyDiana will prompt you to choose between BadUpdate [BadUpdate](https://github.com/grimdoomer/Xbox360BadUpdate) or ABadAvatar [ABadAvatar](https://github.com/shutterbug2000/ABadAvatar)
+6. **Select default exploit**: DirtyDiana will prompt you to choose between [BadUpdate](https://github.com/grimdoomer/Xbox360BadUpdate) or [ABadAvatar](https://github.com/shutterbug2000/ABadAvatar)
 7. **Copy Files:** DirtyDiana will copy all of the extracted files to the correct locations.
 8. **Add Homebrew (Optional):**
     - Specify the root folder of your homebrew application (e.g., `D:\Aurora 0.7b.2 - Release Package`).

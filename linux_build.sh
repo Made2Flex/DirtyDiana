@@ -7,7 +7,7 @@
 set -Eeuo pipefail
 
 
-VERSION="0.5.1"
+VERSION="0.6.1"
 AUTHOR=TWFkZTJGbGV4
 
 SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
@@ -58,6 +58,8 @@ pkg_mgrs() {
         echo "arch"
     elif command -v apt-get >/dev/null 2>&1; then
         echo "debian"
+    elif command -v zypper >/dev/null 2>&1; then
+        echo "opensuse"
     elif command -v brew >/dev/null 2>&1; then
         echo "macos"
     else
@@ -66,7 +68,7 @@ pkg_mgrs() {
 }
 
 # ------------------------------------------------------------
-# Dependancy array
+# Dependency array
 # ------------------------------------------------------------
 deps() {
     case "$(pkg_mgrs)" in
@@ -84,14 +86,36 @@ deps() {
             echo "zlib1g-dev"
             echo "libssl-dev"
             ;;
+        "opensuse")
+            echo "dotnet-sdk-10.0"
+            echo "devel_basis"
+            echo "devel_C_C++"
+            ;;
         "macos")
             echo "dotnet-sdk"
             ;;
     esac
 }
 
+get_dotnet_OpenSuse() {
+    if command -v zipper >/dev/null 2>&1; then
+        sudo rpm --import https://packages.microsoft.com/keys/microsoft.asc
+        wget https://packages.microsoft.com/config/opensuse/16/prod.repo
+        sudo mv prod.repo /etc/zypp/repos.d/microsoft-prod.repo
+        sudo chown root:root /etc/zypp/repos.d/microsoft-prod.repo
+        sudo zypper install dotnet-sdk-10.0
+    fi
+}
+
+get_pattern_OpenSuse() {
+    local pattern="$1"
+    if command -v zypper >/dev/null 2>&1 && [ -n "$pattern" ]; then
+        sudo zypper install --type pattern "$pattern"
+    fi
+}
+
 # ------------------------------------------------------------
-# Utility function to install dependancies
+# Utility function to install dependencies
 # ------------------------------------------------------------
 install_deps() {
 
@@ -115,6 +139,13 @@ install_deps() {
                     log_me "INFO" "$dep is already installed (apt)."
                 fi
                 ;;
+            "opensuse")
+                if ! zypper info "$dep" >/dev/null 2>&1; then
+                        missing+=("$dep")
+                else
+                    log_me "INFO" "$dep is already installed (rpm/zypper)."
+                fi
+                ;;
             "macos")
                 if ! brew list --cask "$dep" >/dev/null 2>&1 && ! brew list "$dep" >/dev/null 2>&1; then
                     missing+=("$dep")
@@ -136,7 +167,6 @@ install_deps() {
     case "$pkgmgr" in
 
         "arch")
-
             # Enable extra repo if needed
             if ! grep -Pzo "\[extra\][^\[]+?^\s*Include" /etc/pacman.conf | grep -q "Server"; then
                 log_me "INFO" "Enabling [extra] repository in /etc/pacman.conf."
@@ -146,31 +176,31 @@ install_deps() {
             log_me "INFO" "Installing dependencies via pacman."
             sudo pacman -Sy --needed --noconfirm "${missing[@]}"
             ;;
-
         "debian")
-
-            if ! grep -qi microsoft /etc/apt/sources.list /etc/apt/sources.list.d/* 2>/dev/null; then
-                log_me "INFO" "Adding Microsoft package repository."
-                wget https://packages.microsoft.com/config/ubuntu/$(lsb_release -rs)/packages-microsoft-prod.deb -O packages-microsoft-prod.deb || true
-                sudo dpkg -i packages-microsoft-prod.deb || true
-                rm -f packages-microsoft-prod.deb
-            fi
-
             log_me "INFO" "Updating apt repository."
             sudo apt-get update
 
             log_me "INFO" "Installing dependencies via apt."
             sudo apt-get install -y "${missing[@]}"
             ;;
-
+        "opensuse")
+            log_me "INFO" "Installing dependencies via zypper."
+            echo "Installing the following dependencies: ${missing[@]}"
+            for dep in "${missing[@]}"; do
+                if [[ "$dep" == "dotnet"* ]]; then
+                    get_dotnet_OpenSuse "$dep"
+                elif [[ "$dep" == *"pattern"* ]]; then
+                    get_pattern_OpenSuse "$dep"
+                else
+                    sudo zypper install -y "$dep"
+                fi
+            done
+            ;;
         "macos")
-
             log_me "INFO" "Installing dependencies via brew."
             brew install --cask "${missing[@]}"
             ;;
-
         *)
-
             log_me "ERROR" "Unsupported or unknown package manager."
             echo "[ERROR] Unsupported or unknown package manager."
             exit 1
@@ -182,7 +212,7 @@ install_deps() {
 # ------------------------------------------------------------
 # Detect .NET SDK
 # ------------------------------------------------------------
-detect_dotnet_sdk() {
+detect_dotnet_sdk_version() {
     local sdk
     sdk=$(dotnet --info 2>/dev/null | awk '/^\.NET SDK:/ {getline; if ($1=="Version:") print $2; exit}')
 
@@ -216,7 +246,7 @@ pre_flight() {
         esac
     fi
 
-    detect_dotnet_sdk
+    detect_dotnet_sdk_version
 
     if [[ ! -f "$PROJECT_PATH" ]]; then
         log_me "ERROR" "Project file was not found: $PROJECT_PATH."
@@ -410,7 +440,6 @@ log_me() {
     # Behavior:
     #   - Writes log entry to $LOG_PATH.
     #   - Rotates log file if > 5MB.
-    #   - Returns 0 on success, 1 on failure.
     #   - Usage: log_me "LEVEL" "MESSAGE"
     #   - Levels: INFO, WARN, ERROR Ect..
 

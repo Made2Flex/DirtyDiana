@@ -11,10 +11,17 @@
     <RootNamespace>DirtyDiana</RootNamespace>
   </PropertyGroup>
 
-	<ItemGroup>
+  <!-- Must match DirtyDiana.Formatter: Windows host build references char-based FormatVolume. -->
+  <PropertyGroup Condition="'$(OS)' == 'Windows_NT'">
+    <DefineConstants>$(DefineConstants);WINDOWS</DefineConstants>
+  </PropertyGroup>
+
+  <!-- Exclude fat32format.exe from the project -->
+  <ItemGroup>
     <None Remove="fat32format.exe" />
   </ItemGroup>
 
+  <!-- NuGet packages -->
   <ItemGroup>
     <PackageReference Include="Octokit" Version="14.0.0" />
     <PackageReference Include="SharpCompress" Version="0.39.0" />
@@ -22,7 +29,8 @@
     <PackageReference Include="System.Management" Version="9.0.3" />
   </ItemGroup>
 
-	<ItemGroup>
+  <!-- Reference to platform-aware formatter -->
+  <ItemGroup>
     <ProjectReference Include="..\DirtyDiana.Formatter\DirtyDiana.Formatter.csproj" />
   </ItemGroup>
 

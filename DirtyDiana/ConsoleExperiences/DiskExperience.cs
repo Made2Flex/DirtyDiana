@@ -3,7 +3,7 @@ using DirtyDiana.Models;
 using DirtyDiana.Helpers;
 using DirtyDiana.Formatter;
 using DirtyDiana.Utilities;
-using System.Runtime.InteropServices; // portability
+using System.Runtime.InteropServices;
 
 namespace DirtyDiana
 {
@@ -17,9 +17,9 @@ namespace DirtyDiana
 
             return AnsiConsole.Prompt(
                 new SelectionPrompt<string>()
-                    .Title("Select a disk:")
-                    .HighlightStyle(GreenStyle)
-                    .AddChoices(choices)
+                .Title("Select a disk:")
+                .HighlightStyle(GreenStyle)
+                .AddChoices(choices)
             );
         }
 
@@ -27,39 +27,90 @@ namespace DirtyDiana
         {
             return AnsiConsole.Prompt(
                 new TextPrompt<bool>($"[#FF7200 bold]WARNING: [/]Are you sure you would like to format the selected drive? All data on this drive will be lost.")
-                    .AddChoice(true)
-                    .AddChoice(false)
-                    .DefaultValue(false)
-                    .ChoicesStyle(GreenStyle)
-                    .DefaultValueStyle(OrangeStyle)
-                    .WithConverter(choice => choice ? "y" : "n")
+                .AddChoice(true)
+                .AddChoice(false)
+                .DefaultValue(false)
+                .ChoicesStyle(GreenStyle)
+                .DefaultValueStyle(OrangeStyle)
+                .WithConverter(choice => choice ? "y" : "n")
             );
         }
 
         static bool FormatDisk(DiskInfo disk)
         {
-            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-            {
-                AnsiConsole.MarkupLine(
-                    Markup.Escape("[-] Automatic formatting is currently only supported on Windows.")
-                );
-
-                var check = UsbCompatibilityChecker.Check(disk.DriveLetter);
-
-                if (!check.IsFat32)
-                {
-                    AnsiConsole.MarkupLine(
-                        Markup.Escape($"[!] Detected filesystem: {check.FileSystem}. FAT32 is required.")
-                    );
-                    Environment.Exit(1);
-                }
-
-                return true;
-            }
-
             string output = string.Empty;
             bool success = true;
 
+            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                LinuxPrivilegeHelper.EnsureRootOrExit();
+
+                AnsiConsole.Status().SpinnerStyle(LightOrangeStyle)
+                .Start($"[#76B900]Formatting disk[/] {disk.DriveLetter} ({disk.SizeFormatted}) - {disk.Type}", ctx =>
+                {
+                    ClearConsole();
+
+                    try
+                    {
+                        var device = DiskHelperUnix.GetDeviceFromMountPoint(disk.DriveLetter);
+
+                        if (string.IsNullOrWhiteSpace(device))
+                            throw new Exception("Unable to resolve device from mount point.");
+
+                        // unmount points
+                        try
+                        {
+                            foreach (var line in File.ReadLines("/proc/self/mounts"))
+                            {
+                                var parts = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                                if (parts.Length < 2)
+                                    continue;
+
+                                string mountedDevice = parts[0];
+                                string mountPoint = parts[1];
+
+                                if (mountedDevice.StartsWith(device, StringComparison.Ordinal))
+                                {
+                                    System.Diagnostics.Process.Start("umount", $"\"{mountPoint}\"")?.WaitForExit();
+                                }
+                            }
+                        }
+                        catch
+                        {
+                            //
+                        }
+
+                        #if WINDOWS
+                        output = DiskFormatter.FormatVolume(device[0], disk.TotalSize);
+                        #else // Unix
+                        output = DiskFormatter.FormatVolume(device, disk.TotalSize);
+                        #endif
+
+                        if (!string.IsNullOrEmpty(output))
+                        {
+                            success = false;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        output = ex.ToString();
+                        success = false;
+                    }
+                });
+
+                if (!success)
+                {
+                    AnsiConsole.Clear();
+                    ShowWelcomeMessage();
+
+                    if (!string.IsNullOrWhiteSpace(output))
+                        AnsiConsole.MarkupLine($"[red]{Markup.Escape(output)}[/]");
+                }
+
+                return success;
+            }
+
+            // Windows branch
             AnsiConsole.Status().SpinnerStyle(LightOrangeStyle)
             .Start($"[#76B900]Formatting disk[/] {disk.DriveLetter} ({disk.SizeFormatted}) - {disk.Type}", ctx =>
             {
@@ -68,7 +119,12 @@ namespace DirtyDiana
                 try
                 {
                     char driveChar = disk.DriveLetter[0];
+                    #if WINDOWS
                     output = DiskFormatter.FormatVolume(driveChar, disk.TotalSize);
+                    #else
+                    string devicePath = driveChar.ToString(); // convert char to string for Linux
+                    output = DiskFormatter.FormatVolume(devicePath, disk.TotalSize);
+                    #endif
 
                     if (!string.IsNullOrEmpty(output))
                         success = false;

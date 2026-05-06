@@ -9,20 +9,14 @@ namespace DirtyDiana.Helpers
     {
         internal static async Task GetGitHubAssets(List<DownloadItem> items)
         {
-            // Create GitHub client
             var gitClient = new GitHubClient(new ProductHeaderValue("DirtyDiana"));
-
-            string? token = Environment.GetEnvironmentVariable("GITHUB_TOKEN");
-            if (!string.IsNullOrEmpty(token))
-            {
-                gitClient.Credentials = new Credentials(token);
-            }
 
             var repos = new List<string>
             {
                 "grimdoomer/Xbox360BadUpdate",
                 "Byrom90/XeUnshackle",
-                "FreeMyXe/FreeMyXe"
+                "FreeMyXe/FreeMyXe",
+                "shutterbug2000/ABadAvatar"
             };
 
             foreach (var repo in repos)
@@ -53,10 +47,25 @@ namespace DirtyDiana.Helpers
                     continue;
                 }
 
+                static bool HasUsableAssets(Release r) =>
+                    r.Assets != null &&
+                    r.Assets.Any(a =>
+                        a != null &&
+                        !string.IsNullOrWhiteSpace(a.Name) &&
+                        !string.IsNullOrWhiteSpace(a.BrowserDownloadUrl));
+
                 var latestRelease = releases
-                .Where(r => r != null && !r.Draft && !r.Prerelease)
-                .OrderByDescending(r => r.PublishedAt)
-                .FirstOrDefault();
+                    .Where(r => r != null && !r.Draft && !r.Prerelease && HasUsableAssets(r))
+                    .OrderByDescending(r => r.PublishedAt)
+                    .FirstOrDefault()
+                    ?? releases
+                        .Where(r => r != null && !r.Draft && HasUsableAssets(r))
+                        .OrderByDescending(r => r.PublishedAt)
+                        .FirstOrDefault()
+                    ?? releases
+                        .Where(r => r != null && HasUsableAssets(r))
+                        .OrderByDescending(r => r.PublishedAt)
+                        .FirstOrDefault();
 
                 if (latestRelease == null || latestRelease.Assets == null || latestRelease.Assets.Count == 0)
                 {
@@ -69,13 +78,18 @@ namespace DirtyDiana.Helpers
                     if (asset == null || string.IsNullOrEmpty(asset.Name) || string.IsNullOrEmpty(asset.BrowserDownloadUrl))
                         continue;
 
-                    string friendlyName = asset.Name switch
+                    string friendlyName = name switch
                     {
-                        var n when n.Contains("Free", StringComparison.OrdinalIgnoreCase) => "FreeMyXe",
-                        var n when n.Contains("Tools", StringComparison.OrdinalIgnoreCase) => "BadUpdate Tools",
-                        var n when n.Contains("BadUpdate", StringComparison.OrdinalIgnoreCase) => "BadUpdate",
-                        var n when n.Contains("XeUnshackle", StringComparison.OrdinalIgnoreCase) => "XeUnshackle",
-                        _ => asset.Name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) ? asset.Name[..^4] : asset.Name
+                        "ABadAvatar" => "ABadAvatar",
+                        _ => asset.Name switch
+                        {
+                            var n when n.Contains("Free", StringComparison.OrdinalIgnoreCase) => "FreeMyXe",
+                            var n when n.Contains("Tools", StringComparison.OrdinalIgnoreCase) => "BadUpdate Tools",
+                            var n when n.Contains("BadUpdate", StringComparison.OrdinalIgnoreCase) => "BadUpdate",
+                            var n when n.Contains("XeUnshackle", StringComparison.OrdinalIgnoreCase) => "XeUnshackle",
+                            var n when n.Contains("ABadAvatar", StringComparison.OrdinalIgnoreCase) => "ABadAvatar",
+                            _ => asset.Name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) ? asset.Name[..^4] : asset.Name
+                        }
                     };
 
                     items.Add(new(friendlyName, asset.BrowserDownloadUrl));

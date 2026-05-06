@@ -11,7 +11,7 @@ using static DirtyDiana.Utilities.Constants;
 namespace DirtyDiana.Helpers
 {
     internal static class DownloadHelperLinux
-    {
+    {       
         internal static async Task<List<DownloadItem>> DownloadAllReleasesAsync()
         {
             var items = new List<DownloadItem>();
@@ -125,7 +125,6 @@ namespace DirtyDiana.Helpers
                     return items;
                 }
 
-                // Get first non-draft, non-prerelease release
                 releaseObj = doc.RootElement.EnumerateArray()
                 .FirstOrDefault(r =>
                 (!r.TryGetProperty("draft", out var draft) || !draft.GetBoolean()) &&

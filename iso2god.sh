@@ -13,12 +13,11 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ISO2GOD="./iso2god"
 
 is_iso2god() {
-    # Check if iso2god is available in PATH
     if command -v "$ISO2GOD" &>/dev/null; then
         echo "[+] Found iso2god executable in PATH.."
         return 0
     fi
-    # Check if executable exists in script dir
+
     if [[ -x "$SCRIPT_DIR/iso2god" ]]; then
         echo "[+] Found iso2god executable in tree.."
         return 0
@@ -30,7 +29,6 @@ is_iso2god() {
 
     cd "$SCRIPT_DIR" || exit 1
 
-    # Download if not already present
     if ! command -v curl &>/dev/null; then
         echo "[ERROR] curl is required to download iso2god, but not found."
         exit 1
@@ -41,7 +39,6 @@ is_iso2god() {
         exit 1
     }
 
-    # Extract the zip
     if ! command -v unzip &>/dev/null; then
         echo "[ERROR] unzip is required to extract iso2god, but not found."
         exit 1

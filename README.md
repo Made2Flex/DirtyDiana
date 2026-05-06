@@ -9,19 +9,18 @@ All original rights belong to the original author(s).
 Modifications in this fork are [©Made2Flex](https://github.com/Made2Flex/DirtyDiana).
 
 ## Features:
-### USB Formatting (Windows Only)
+### USB Formatting
 - Uses a custom FAT32 formatter that supports large USB drives (≥32GB).
 - Ensures compatibility with the Xbox 360.
 
-> [!NOTE]  
-> Currently, the formatting feature is **Windows-only**.
-⚠ On Linux, DirtyDiana will skip formatting and require manual FAT32 preparation. This can be done using an Xbox 360 or any personal computer.
+> [!NOTE]
+⚠ On Linux, DirtyDiana needs to be run with sudo!
 
 ### Automatic File Downloading
 - Detects and downloads the latest required files automatically.
 - Recognizes previously downloaded files and reuses them by default.
 - Allows specifying custom paths for required files if they are already on your system.
-> [!IMPORTANT]  
+> [!IMPORTANT]
 > DirtyDiana does not dynamically locate files inside ZIP archives. If your provided archive has a different folder structure than expected, the process will fail abruptly. Ensure your archive matches the expected format if specifying an existing copy.
 
 ### File Extraction & Copying
@@ -32,11 +31,15 @@ Modifications in this fork are [©Made2Flex](https://github.com/Made2Flex/DirtyD
 - Allows adding homebrew applications by specifying their root folder.
 - Automatically searches for the entry point (`.xex`) file within the folder.
 - If multiple `.xex` files are found, DirtyDiana will prompt you to select the correct one.
-- Copies all necessary files and patches the entry `.xex` using the downloaded XexTool. [!NOTE] As of the latest releases, patching is no longer needed. A legacy toggle was left in src code for you to use if need be.
+- Copies all necessary files and patches the entry `.xex` using the downloaded XexTool. 
+> [!NOTE]
+> As of the latest releases, patching is no longer needed. A legacy toggle was left in src code for you to use if ever need be.
 
 ## How to Use
 1. **Launch the executable**. It will open inside of a Terminal window.
-2. **Formatting (Windows Only):** DirtyDiana will format your USB drive as FAT32, even if it’s larger than 32GB.
+> [!IMPORTANT] 
+> On Linux, you MUST manually run DirtyDiana inside a terminal. Because the use of 'sudo' is required. This behavior will change in future releases.
+2. **Formatting:** DirtyDiana will format your USB drive as FAT32, even if it’s larger than 32GB.
 > [!CAUTION]
 > Formatting a disk means that all data will be lost. Make sure you have selected the right drive before confirming the format. I am not responsible for any data loss.
 3. **Download Files:** DirtyDiana will fetch the required exploit files or let you specify an existing location.
@@ -74,25 +77,25 @@ Aurora 0.7b.2 - Release Package/
 ```
 DirtyDiana will detect `Aurora.xex` as the entry point and patch it accordingly.
 
-> [!IMPORTANT]  
+> [!IMPORTANT]
 > Homebrew apps which do not contain the entry point in the root folder will require you to manually enter the path of the entry point.
 
 ## Building instructions for linux
 1. Clone the repo: https://github.com/Made2Flex/DirtyDiana
-2. cd into DirtyDiana
+2. Cd into DirtyDiana
 3. Run the provided script in the root folder
-4. The final executable will be placed in Desktop/DirtyDiana
+The final executable will be placed in Desktop/DirtyDiana
 
 or
 
-1. install dotnet-sdk-8.0 or its runtime
-2. run: dotnet restore DirtyDiana/DirtyDiana.csproj
-3. the above cmd is sometimes needed when building for the first time.
-4. run: dotnet build DirtyDiana/DirtyDiana.csproj \
+1. Install dotnet-sdk-8.0 or its runtime
+2. Run: dotnet restore DirtyDiana/DirtyDiana.csproj
+   The above cmd is sometimes needed when building for the first time.
+3. Run: dotnet build DirtyDiana/DirtyDiana.csproj \
         -c "$CONFIG" \
         --no-restore
 
-5. followed by:
+4. Followed by:
 dotnet publish DirtyDiana/DirtyDiana.csproj \
         -c "$CONFIG" \
         -r "$RUNTIME" \
@@ -103,8 +106,10 @@ dotnet publish DirtyDiana/DirtyDiana.csproj \
         -p:Optimize=true
 
 ## Building instructions for M$ Windows
-On windows you can try running this cmd from admin powershell:
-powershell -ExecutionPolicy Bypass -File .\windows_build.ps1
+1. Open a PowerShell window as admin
+2. Cd into the root directory of the project
+3. Run this cmd: powershell -ExecutionPolicy Bypass -File .\windows_build.ps1
+The final executable will be placed in Desktop/DirtyDiana
 
 ## Reporting Issues
 If you encounter any problems, please create a new issue with details about your setup and the problem.

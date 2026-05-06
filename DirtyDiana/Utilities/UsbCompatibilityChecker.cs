@@ -17,23 +17,29 @@ namespace DirtyDiana.Utilities
 
 	internal static class UsbCompatibilityChecker
 	{
-		public static UsbCompatibilityResult Check(string mountPath)
+		internal static UsbCompatibilityResult Check(string mountPath)
 		{
 			var result = new UsbCompatibilityResult();
 			var drive = new DriveInfo(mountPath);
 
-			// Check if drive is writable
 			result.Writable = CheckWritable(mountPath);
 
 			// Check free space
 			result.FreeSpace = drive.AvailableFreeSpace;
-			result.RequiredSpace = 1_200_000_000; // ~1.2 GB
+			result.RequiredSpace = 500_000_000; // ~500 MB
 			result.EnoughFreeSpace = result.FreeSpace > result.RequiredSpace;
 
 			// Check filesystem type
-			result.FileSystem = drive.DriveFormat;
-			result.IsFat32 = string.Equals(drive.DriveFormat, "FAT32", StringComparison.OrdinalIgnoreCase) ||
-			string.Equals(drive.DriveFormat, "msdos", StringComparison.OrdinalIgnoreCase);
+			if (OperatingSystem.IsWindows())
+			{
+				result.FileSystem = drive.DriveFormat;
+			}
+			else
+			{
+				result.FileSystem = DirtyDiana.Helpers.DiskHelperUnix.GetFilesystemType(mountPath);
+			}
+
+			result.IsFat32 = string.Equals(result.FileSystem, "fat32", StringComparison.OrdinalIgnoreCase);
 
 			return result;
 		}
@@ -56,11 +62,11 @@ namespace DirtyDiana.Utilities
 		public static void PrintCheck(UsbCompatibilityResult result)
 		{
 			Console.WriteLine();
-			Console.WriteLine("USB Compatibility Check");
+			Console.WriteLine("Compatibility Check");
 			Console.WriteLine("-----------------------");
 			Console.WriteLine(result.Writable ? "✓ Drive is writable" : "⚠ Drive is not writable");
 			Console.WriteLine(result.IsFat32 ? $"✓ FAT32 filesystem ({result.FileSystem})" : $"⚠ FAT32 filesystem ({result.FileSystem})");
-			Console.WriteLine(result.EnoughFreeSpace ? "✓ Enough free space" : $"⚠ Not enough free space ({result.FreeSpace / 1_000_000} MB available)");
+			Console.WriteLine(result.EnoughFreeSpace ? "✓ Enough free space" : $"⚠ Not enough free space ({result.FreeSpace / Constants.MB} MB available)");
 			Console.WriteLine();
 			Console.WriteLine(result.Writable && result.IsFat32 && result.EnoughFreeSpace
 			? "Drive appears compatible with Xbox 360."

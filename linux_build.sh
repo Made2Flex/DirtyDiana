@@ -6,9 +6,8 @@
 
 set -Eeuo pipefail
 
-
-VERSION="0.6.1"
-AUTHOR=TWFkZTJGbGV4
+VERSION="0.6.1-1"
+AUTHOR="TWFkZTJGbGV4"
 
 SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
 LOG_PATH="$SCRIPT_DIR/DirtyDiana.log"
@@ -21,6 +20,7 @@ PROJECT_PATH="DirtyDiana/DirtyDiana.csproj"
 PUBLISH_PROJECT="DirtyDiana"
 RUN_PATH="$HOME/Desktop/DirtyDiana"
 BINARY_NAME="DirtyDiana"
+EXPORT_BIN="export PATH=$RUN_PATH/:$PATH"
 
 # ------------------------------------------------------------
 # Greeter
@@ -87,125 +87,164 @@ deps() {
             echo "libssl-dev"
             ;;
         "opensuse")
+            echo "dotnet-sdk-8.0"
             echo "dotnet-sdk-10.0"
-            echo "devel_basis"
-            echo "devel_C_C++"
             ;;
         "macos")
             echo "dotnet-sdk"
+            echo "coreutils"
             ;;
     esac
 }
 
-get_dotnet_OpenSuse() {
-    if command -v zipper >/dev/null 2>&1; then
+opensuse_patterns() {
+    echo "devel_basis"
+}
+
+# ------------------------------------------------------------
+# Utility functions to install dependencies
+# ------------------------------------------------------------
+setup_dotnet_repo() {
+    if ! zypper lr | grep -q packages.microsoft.com; then
+        log_me "INFO" "Adding Microsoft .NET repository."
+        echo "Adding Microsoft .NET repository.."
         sudo rpm --import https://packages.microsoft.com/keys/microsoft.asc
-        wget https://packages.microsoft.com/config/opensuse/16/prod.repo
+        wget -q https://packages.microsoft.com/config/opensuse/16/prod.repo
         sudo mv prod.repo /etc/zypp/repos.d/microsoft-prod.repo
-        sudo chown root:root /etc/zypp/repos.d/microsoft-prod.repo
-        sudo zypper install dotnet-sdk-10.0
+        sudo zypper refresh
     fi
 }
 
-get_pattern_OpenSuse() {
+is_pattern_installed() {
     local pattern="$1"
-    if command -v zypper >/dev/null 2>&1 && [ -n "$pattern" ]; then
-        sudo zypper install --type pattern "$pattern"
+
+    if zypper search -i -t pattern | awk '{print $3}' | grep -qx "$pattern"; then
+        return 0
     fi
+
+    return 1
 }
 
-# ------------------------------------------------------------
-# Utility function to install dependencies
-# ------------------------------------------------------------
-install_deps() {
+detect_missing_patterns() {
+    missing_patterns=()
 
+    for pat in $(opensuse_patterns); do
+        if ! is_pattern_installed "$pat"; then
+            missing_patterns+=("$pat")
+        fi
+    done
+}
+
+detect_missing_deps() {
     local pkgmgr
     pkgmgr=$(pkg_mgrs)
-    local missing=()
+    missing=()
+    cask_deps=()
+    formula_deps=()
 
+    echo "[+] Detecting missing dependencies.."
     for dep in $(deps); do
         case "$pkgmgr" in
-            "arch")
+            arch)
                 if ! pacman -Qi "$dep" >/dev/null 2>&1; then
                     missing+=("$dep")
-                else
-                    log_me "INFO" "$dep is already installed (pacman)."
                 fi
                 ;;
-            "debian")
+            debian)
                 if ! dpkg -s "$dep" >/dev/null 2>&1; then
                     missing+=("$dep")
-                else
-                    log_me "INFO" "$dep is already installed (apt)."
                 fi
                 ;;
-            "opensuse")
-                if ! zypper info "$dep" >/dev/null 2>&1; then
-                        missing+=("$dep")
-                else
-                    log_me "INFO" "$dep is already installed (rpm/zypper)."
-                fi
-                ;;
-            "macos")
-                if ! brew list --cask "$dep" >/dev/null 2>&1 && ! brew list "$dep" >/dev/null 2>&1; then
+            opensuse)
+                if ! rpm -q "$dep" >/dev/null 2>&1; then
                     missing+=("$dep")
-                else
-                    log_me "INFO" "$dep is already installed (brew)."
+                fi
+                detect_missing_patterns
+                ;;
+            macos)
+                if ! brew list "$dep" >/dev/null 2>&1; then
+                    missing+=("$dep")
                 fi
                 ;;
         esac
     done
-
-    # Nothing to install
-    if [ ${#missing[@]} -eq 0 ]; then
-        log_me "INFO" "All dependencies already installed."
-        return
+    # split cask and formula
+    if [ "$pkgmgr" = "macos" ] && [ ${#missing[@]} -gt 0 ]; then
+        for d in "${missing[@]}"; do
+            if brew info --cask "$d" &>/dev/null; then
+                cask_deps+=("$d")
+            else
+                formula_deps+=("$d")
+            fi
+        done
     fi
+}
 
-    log_me "INFO" "Missing dependencies: ${missing[*]}"
+install_missing_deps() {
+    local pkgmgr
+    pkgmgr=$(pkg_mgrs)
 
     case "$pkgmgr" in
+        arch)
+            if [ ${#missing[@]} -gt 0 ]; then
+                echo "Installing missing dependencies.."
+                log_me "INFO" "Installing dependencies via pacman."
+                sudo pacman -Sy --needed --noconfirm "${missing[@]}"
+            fi
+            ;;
+        debian)
+            if [ ${#missing[@]} -gt 0 ]; then
+                log_me "INFO" "Updating apt repositories."
+                echo "Running apt update.."
+                sudo apt-get update
 
-        "arch")
-            # Enable extra repo if needed
-            if ! grep -Pzo "\[extra\][^\[]+?^\s*Include" /etc/pacman.conf | grep -q "Server"; then
-                log_me "INFO" "Enabling [extra] repository in /etc/pacman.conf."
-                sudo sed -i '/\[extra\]/,/^$/ s/^#\s*\(Include\|Server\)/\1/' /etc/pacman.conf
+                log_me "INFO" "Installing dependencies via apt."
+                echo "Installing missing dependencies.."
+                sudo apt-get install -y "${missing[@]}"
+            fi
+            ;;
+        opensuse)
+            if [ ${#missing[@]} -gt 0 ]; then
+                for dep in "${missing[@]}"; do
+                    if [[ "$dep" == dotnet* ]]; then
+                        setup_dotnet_repo
+                    fi
+                    log_me "INFO" "Installing package: $dep"
+                    echo "Installing missing package: $dep"
+                    sudo zypper install -y "$dep"
+                done
             fi
 
-            log_me "INFO" "Installing dependencies via pacman."
-            sudo pacman -Sy --needed --noconfirm "${missing[@]}"
+            if [ "${#missing_patterns[@]}" -gt 0 ]; then
+                for pat in "${missing_patterns[@]}"; do
+                    log_me "INFO" "Installing pattern: $pat"
+                    echo "Installing missing pattern: $pat"
+                    sudo zypper install -y -t pattern "$pat"
+                done
+            fi
             ;;
-        "debian")
-            log_me "INFO" "Updating apt repository."
-            sudo apt-get update
+        macos)
+            if [ ${#missing[@]} -gt 0 ]; then
+                log_me "INFO" "Installing dependencies via brew."
+                echo "Installing missing dependencies.."
+                brew update
 
-            log_me "INFO" "Installing dependencies via apt."
-            sudo apt-get install -y "${missing[@]}"
-            ;;
-        "opensuse")
-            log_me "INFO" "Installing dependencies via zypper."
-            echo "Installing the following dependencies: ${missing[@]}"
-            for dep in "${missing[@]}"; do
-                if [[ "$dep" == "dotnet"* ]]; then
-                    get_dotnet_OpenSuse "$dep"
-                elif [[ "$dep" == *"pattern"* ]]; then
-                    get_pattern_OpenSuse "$dep"
-                else
-                    sudo zypper install -y "$dep"
+                if [ "${#formula_deps[@]}" -gt 0 ]; then
+                    echo "Installing brew formula dependencies: ${formula_deps[*]}"
+                    brew install "${formula_deps[@]}"
                 fi
-            done
-            ;;
-        "macos")
-            log_me "INFO" "Installing dependencies via brew."
-            brew install --cask "${missing[@]}"
+
+                if [ "${#cask_deps[@]}" -gt 0 ]; then
+                    echo "Installing brew cask dependencies: ${cask_deps[*]}"
+                    brew install --cask "${cask_deps[@]}"
+                fi
+            fi
             ;;
         *)
-            log_me "ERROR" "Unsupported or unknown package manager."
-            echo "[ERROR] Unsupported or unknown package manager."
+            log_me "ERROR" "Unsupported package manager."
+            echo "[ERROR] Unsupported package manager."
             exit 1
             ;;
-
     esac
 }
 
@@ -230,20 +269,9 @@ detect_dotnet_sdk_version() {
 # ------------------------------------------------------------
 pre_flight() {
     if ! command -v dotnet >/dev/null 2>&1; then
-        log_me "ERROR" "dotnet SDK not found in PATH, or is not installed."
-        echo "[-] dotnet SDK not found in PATH, or is not installed."
-        read -rp "Would you like to install dependencies now? [y/N] " answer
-        answer_pf=$(printf '%s' "$answer" | tr '[:upper:]' '[:lower:]')
-
-        case "$answer_pf" in
-            y|yes)
-                install_deps
-                ;;
-            *)
-                echo "[!] Please install dependencies manually and re-run the script."
-                exit 1
-                ;;
-        esac
+        log_me "ERROR" "dotnet SDK not found."
+        echo "[ERROR] dotnet SDK is missing."
+        exit 1
     fi
 
     detect_dotnet_sdk_version
@@ -266,7 +294,7 @@ clean_up() {
     echo "[*] Using .NET SDK: $DOTNET_SDK"
     log_me "INFO" "Cleaning leftovers with dotnet clean."
     echo "[*] Cleaning leftovers..."
-    #sudo dotnet workload update
+
     if dotnet clean "$PROJECT_PATH" -c "$CONFIG"; then
         log_me "INFO" "dotnet clean completed."
     else
@@ -408,7 +436,6 @@ check_log() {
             return 1
         fi
 
-        # Set permissions read/write
         if ! chmod 0644 "$LOG_PATH" 2>/dev/null; then
             echo "[WARN] Unable to set permissions (0644) on $LOG_PATH"
             echo "Continuing anyway.."
@@ -451,7 +478,7 @@ log_me() {
 
     # Need both parameters
     if [ -z "$level" ] || [ -z "$message" ]; then
-        echo "[ERROR] Missing parameters for propper logging. Both LEVEL and MESSAGE are needed"
+        echo "[ERROR] Missing parameters for proper logging. Both LEVEL and MESSAGE are needed"
         echo "Exiting.."
         return 1
     fi
@@ -505,9 +532,11 @@ check_build() {
     if [[ ! -x "$RUN_PATH/$BINARY_NAME" ]]; then
         log_me "ERROR" "Binary is not executable: $RUN_PATH/$BINARY_NAME."
         echo "[!] Binary is not executable: $RUN_PATH/$BINARY_NAME"
-        echo "[*] Making binary executable..."
+        echo "[*] Making binary executable."
         log_me "INFO" "Making binary executable: $RUN_PATH/$BINARY_NAME."
-        chmod -Rf +x "$RUN_PATH/$BINARY_NAME"
+        if ! chmod -Rf +x "$RUN_PATH/$BINARY_NAME"; then
+            echo "Something went wrong: $?"
+        fi
         log_me "INFO" "Binary made executable: $RUN_PATH/$BINARY_NAME."
         echo "[+] Binary made executable: $RUN_PATH/$BINARY_NAME."
     fi
@@ -582,13 +611,13 @@ parse_args() {
                 ;;
             -*)
                 log_me "ERROR" "Unknown option: $1"
-                echo -e "Unknown option: $1"
+                echo "Unknown option: $1"
                 echo "Use --help for usage information"
                 exit 1
                 ;;
             *)
                 log_me "ERROR" "Unexpected argument: $1"
-                echo -e "Unexpected argument: $1"
+                echo "Unexpected argument: $1"
                 echo "Use --help for usage information"
                 exit 1
                 ;;
@@ -651,6 +680,8 @@ main() {
     parse_args "$@"
     greet_user
     check_log
+    detect_missing_deps
+    install_missing_deps
     pre_flight
     clean_up
     restore

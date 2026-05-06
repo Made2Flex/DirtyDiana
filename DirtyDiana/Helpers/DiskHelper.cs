@@ -32,9 +32,13 @@ namespace DirtyDiana.Helpers
         internal static string FormatDisk(DiskInfo disk)
         {
             if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-                return "[-] Formatting is currently only supported on Windows. Please format your drive manually and try again.";
+                return "[-] Architecture not supported.";
 
+            #if WINDOWS
             return DiskFormatter.FormatVolume(disk.DriveLetter[0], disk.TotalSize);
+            #else
+            return "[-] Architecture not supported.";
+            #endif
         }
     }
 }

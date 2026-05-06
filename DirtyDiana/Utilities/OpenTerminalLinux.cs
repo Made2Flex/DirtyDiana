@@ -124,7 +124,6 @@ namespace DirtyDiana.Utilities
             }
         }
 
-        // Checks if a command exists in the system's PATH
         private static bool CommandExists(string command)
         {
             try

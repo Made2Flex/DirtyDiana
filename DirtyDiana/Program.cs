@@ -135,10 +135,29 @@ namespace DirtyDiana
 
                 if (confirmation)
                 {
+                    string devicePath = string.Empty;
+                    if (OperatingSystem.IsLinux())
+                    {
+                        devicePath = DiskHelperUnix.GetDeviceFromMountPoint(TargetDriveLetter);
+                    }
+
                     if (!FormatDisk(targetDisk))
                     {
                         ClearConsole();
                         continue;
+                    }
+
+                    if (OperatingSystem.IsLinux())
+                    {
+                        AnsiConsole.MarkupLine($"[grey]{Markup.Escape("[*]")}[/] Verifying mount after formatting...");
+                        TargetDriveLetter = DiskHelperUnix.ResolveWritableMountPoint(TargetDriveLetter, devicePath);
+
+                        if (!Directory.Exists(TargetDriveLetter))
+                        {
+                            AnsiConsole.MarkupLine($"[italic red][[!]] Could not find a mounted writable path for device {Markup.Escape(devicePath)} after formatting.[/]");
+                            AnsiConsole.MarkupLine("[italic gray]Mount the USB drive, then retry.[/]");
+                            Environment.Exit(1);
+                        }
                     }
                 }
                 break;
@@ -154,7 +173,7 @@ namespace DirtyDiana
 
             if (OperatingSystem.IsLinux() || OperatingSystem.IsMacOS())
             {
-                // Linux / Mac
+                // Unix
                 var linuxDownloads = DownloadHelperLinux
                 .DownloadAllReleasesAsync()
                 .GetAwaiter()
@@ -253,14 +272,44 @@ namespace DirtyDiana
                     case "BadUpdate":
                         actionQueue.EnqueueAction(async () =>
                         {
+                            // Re-resolve again
+                            if (OperatingSystem.IsLinux())
+                            {
+                                AnsiConsole.MarkupLine($"[grey]{Markup.Escape("[*]")}[/] Verifying mount before write..");
+
+                                string devicePath = DiskHelperUnix.GetDeviceFromMountPoint(TargetDriveLetter);
+                                string resolved = DiskHelperUnix.ResolveWritableMountPoint(TargetDriveLetter, devicePath);
+
+                                if (!string.IsNullOrWhiteSpace(resolved) && Directory.Exists(resolved))
+                                {
+                                    TargetDriveLetter = resolved;
+                                }
+                            }
+
+                            Directory.CreateDirectory(TargetDriveLetter);
+
                             using (StreamWriter writer = new(Path.Combine(TargetDriveLetter, "name.txt")))
-                                writer.WriteLine("USB Storage Device");
+                            writer.WriteLine("USB Storage Device");
 
                             using (StreamWriter writer = new(Path.Combine(TargetDriveLetter, "info.txt")))
-                                writer.WriteLine($"This drive was created with DirtyDiana.\nModified to work on Unix/Linux by Made2Flex.\nFind more info here: https://github.com/Made2Flex/DirtyDiana\nBased on https://github.com/Pdawg-bytes/BadBuilder\nConfiguration: \n-  BadUpdate target binary: {selectedDefaultApp}");
+                            writer.WriteLine(
+                                $"This drive was created with DirtyDiana.\n" +
+                                $"Modified to work on Unix/Linux by Made2Flex.\n" +
+                                $"Find more info here: https://github.com/Made2Flex/DirtyDiana\n" +
+                                $"Based on https://github.com/Pdawg-bytes/BadBuilder\n" +
+                                $"Configuration: \n" +
+                                $"-  BadUpdate target binary: {selectedDefaultApp}\n" +
+                                $"-  Selected Flavor: {selectedDefaultBaddy}"
+                            );
+                       
 
                             Directory.CreateDirectory(Path.Combine(TargetDriveLetter, "Apps"));
-                            await FileSystemHelper.MirrorDirectoryAsync(Path.Combine(folder, "Rock Band Blitz"), TargetDriveLetter);
+
+                            await FileSystemHelper.MirrorDirectoryAsync(
+                                Path.Combine(folder, "Rock Band Blitz"),
+                                                                        TargetDriveLetter
+                            );
+
                         }, 10);
                         break;
 
@@ -320,10 +369,39 @@ namespace DirtyDiana
                 }
             }
 
+            if (OperatingSystem.IsLinux())
+            {
+                string devicePath = DiskHelperUnix.GetDeviceFromMountPoint(TargetDriveLetter);
+
+                string resolvedPath = DiskHelperUnix.ResolveWritableMountPoint(TargetDriveLetter, devicePath);
+
+                if (!string.IsNullOrWhiteSpace(resolvedPath) && Directory.Exists(resolvedPath))
+                {
+                    TargetDriveLetter = resolvedPath;
+                }
+                else
+                {
+                    AnsiConsole.MarkupLine($"[red][[!]] Failed to resolve writable mount before file operations.[/]");
+                    Environment.Exit(1);
+                }
+            }
+
+            // see if root exists before we write
+            Directory.CreateDirectory(TargetDriveLetter);
+
             actionQueue.ExecuteActionsAsync().Wait();
 
-            File.AppendAllText(Path.Combine(TargetDriveLetter, "info.txt"), "-  Disk formatting: SKIPPED (existing filesystem retained)\n");
-            File.AppendAllText(Path.Combine(TargetDriveLetter, "info.txt"), $"-  Disk total size: {targetDisk.TotalSize} bytes\n");
+            File.AppendAllText(
+                Path.Combine(TargetDriveLetter, "info.txt"),
+                $"-  Disk formatted using " +
+                (OperatingSystem.IsWindows()
+                    ? (targetDisk.TotalSize < 31 * GB ? "Windows \"format.com\"" : "DirtyDiana Large FAT32 formatter")
+                    : "DirtyDiana Linux FAT32 formatter") +
+                "\n"
+            );
+
+            File.AppendAllText(Path.Combine(TargetDriveLetter, "info.txt"),$"-  Disk total size: {Math.Round((double)targetDisk.TotalSize / Constants.GB, 2)} GiB\n");
+
 
             // Mostly for debugging. can be removed..
             Console.Write("\nDone. Press any key to continue...");
@@ -360,8 +438,7 @@ namespace DirtyDiana
 
             WriteHomebrewLog(homebrewApps.Count + 1);
 
-            string status = "[+]";
-            AnsiConsole.MarkupLineInterpolated($"\n[#76B900]{status}[/] [bold]{homebrewApps.Count}[/] apps copied.");
+            AnsiConsole.MarkupLine($"\n[#76B900]{Markup.Escape("[+]")}[/] [bold]{homebrewApps.Count}[/] apps copied.");
 
             AnsiConsole.MarkupLine("\n[#76B900]{0}[/] Your USB drive is ready to go.", Markup.Escape("[+]"));
 
@@ -409,7 +486,7 @@ namespace DirtyDiana
             [#3FA7D6]██████╔╝██║██║  ██║   ██║      ██║   ██████╔╝██║██║  ██║██║ ╚████║██║  ██║[/]
             [#76C7F2]╚═════╝ ╚═╝╚═╝  ╚═╝   ╚═╝      ╚═╝   ╚═════╝ ╚═╝╚═╝  ╚═╝╚═╝  ╚═══╝╚═╝  ╚═╝[/]
 
-            [#1E81B0]────────────────────────────────────────────────────────────────v0.34.7-gn[/]
+            [#1E81B0]────────────────────────────────────────────────────────────────v0.37.7-gn[/]
             ──────────────────Xbox 360 [#FF7200]BadUpdate[/] USB Builder for Linux────────────────
             [#848589]                         ───  By Made2Flex  ───                           [/]
             [#1E81B0]──────────────────────────────────────────────────────────────────────────[/]

@@ -84,13 +84,14 @@ DirtyDiana will detect `Aurora.xex` as the entry point and patch it accordingly.
 1. Clone the repo: https://github.com/Made2Flex/DirtyDiana
 2. Cd into DirtyDiana
 3. Run the provided script in the root folder
-The final executable will be placed in Desktop/DirtyDiana
+> [!NOTE]
+> The final executable will be placed in Desktop/DirtyDiana
 
 or
 
 1. Install dotnet-sdk-8.0 or its runtime
 2. Run: dotnet restore DirtyDiana/DirtyDiana.csproj
-   The above cmd is sometimes needed when building for the first time.
+> The above cmd is sometimes needed when building for the first time.
 3. Run: dotnet build DirtyDiana/DirtyDiana.csproj \
         -c "$CONFIG" \
         --no-restore
@@ -109,7 +110,8 @@ dotnet publish DirtyDiana/DirtyDiana.csproj \
 1. Open a PowerShell window as admin
 2. Cd into the root directory of the project
 3. Run this cmd: powershell -ExecutionPolicy Bypass -File .\windows_build.ps1
-The final executable will be placed in Desktop/DirtyDiana
+> [!NOTE]
+> The final executable will be placed in Desktop/DirtyDiana
 
 ## Reporting Issues
 If you encounter any problems, please create a new issue with details about your setup and the problem.

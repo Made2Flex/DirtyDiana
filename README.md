@@ -82,34 +82,27 @@ DirtyDiana will detect `Aurora.xex` as the entry point and patch it accordingly.
 
 ## Building instructions for linux
 1. Clone the repo: https://github.com/Made2Flex/DirtyDiana
-2. Cd into DirtyDiana
-3. Run the provided script in the root folder
-The final executable will be placed in Desktop/DirtyDiana
+2. `cd DirtyDiana`
+3. Run the build script from the project root:
+   `bash ./linux_build.sh`
+4. The final executable will be placed in: `~/Desktop/DirtyDiana`
 
-or
-
-1. Install dotnet-sdk-8.0 or its runtime
-2. Run: dotnet restore DirtyDiana/DirtyDiana.csproj
-   The above cmd is sometimes needed when building for the first time.
-3. Run: dotnet build DirtyDiana/DirtyDiana.csproj \
-        -c "$CONFIG" \
-        --no-restore
-
-4. Followed by:
-dotnet publish DirtyDiana/DirtyDiana.csproj \
-        -c "$CONFIG" \
-        -r "$RUNTIME" \
-        -p:PublishSingleFile=false \
-        -p:PublishAot=true \
-        --self-contained true \
-        -p:DebugType=none \
-        -p:Optimize=true
+### Manual build (without script)
+1. Install dotnet-sdk (`dotnet-sdk-8.0` on Debian/Ubuntu)
+2. Restore dependencies:
+   `dotnet restore DirtyDiana/DirtyDiana.csproj`
+3. Build Release mode:
+   `dotnet build DirtyDiana/DirtyDiana.csproj -c Release --no-restore`
+4. Publish for Linux x64:
+   `dotnet publish DirtyDiana/DirtyDiana.csproj -c Release -r linux-x64 -p:PublishSingleFile=false -p:PublishAot=true --self-contained true -p:DebugType=none -p:WarningLevel=0 -p:Optimize=true`
+5. Published binary will be in:
+   `DirtyDiana/bin/Release/net8.0/linux-x64/publish/`
 
 ## Building instructions for M$ Windows
 1. Open a PowerShell window as admin
 2. Cd into the root directory of the project
 3. Run this cmd: powershell -ExecutionPolicy Bypass -File .\windows_build.ps1
-The final executable will be placed in Desktop/DirtyDiana
+4. The final executable will be placed in: `Desktop/DirtyDiana/`
 
 ## Reporting Issues
 If you encounter any problems, please create a new issue with details about your setup and the problem.

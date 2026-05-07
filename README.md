@@ -101,8 +101,9 @@ DirtyDiana will detect `Aurora.xex` as the entry point and patch it accordingly.
 ## Building instructions for M$ Windows
 1. Open a PowerShell window as admin
 2. Cd into the root directory of the project
-3. Run this cmd: powershell -ExecutionPolicy Bypass -File .\windows_build.ps1
-4. The final executable will be placed in: `Desktop/DirtyDiana/`
+3. Run this cmd:
+   `powershell -ExecutionPolicy Bypass -File .\windows_build.ps1`
+5. The final executable will be placed in: `Desktop/DirtyDiana/`
 
 ## Reporting Issues
 If you encounter any problems, please create a new issue with details about your setup and the problem.

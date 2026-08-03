@@ -6,7 +6,7 @@
 
 set -Eeuo pipefail
 
-VERSION="0.6.1-1"
+VERSION="0.6.1-2"
 AUTHOR="TWFkZTJGbGV4"
 
 SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
@@ -253,7 +253,14 @@ install_missing_deps() {
 # ------------------------------------------------------------
 detect_dotnet_sdk_version() {
     local sdk
-    sdk=$(dotnet --info 2>/dev/null | awk '/^\.NET SDK:/ {getline; if ($1=="Version:") print $2; exit}')
+
+    if sdk=$(dotnet --version 2>/dev/null); then
+        sdk=$(echo "$sdk" | head -n1 | awk '{ print $1 }')
+    fi
+
+    if [[ -z "$sdk" ]]; then
+        sdk=$(dotnet --info 2>/dev/null | awk -F: '/^ Version:/ {gsub(/^[ \t]+/, "", $2); print $2; exit}')
+    fi
 
     if [[ -z "$sdk" ]]; then
         echo "[!] Could not detect a .NET SDK"
@@ -274,7 +281,14 @@ pre_flight() {
         exit 1
     fi
 
-    detect_dotnet_sdk_version
+    if detect_dotnet_sdk_version; then
+        log_me "INFO" "Detected .NET SDK version: $DOTNET_SDK"
+        echo "[*] Detected .NET SDK version: $DOTNET_SDK"
+    else
+        log_me "ERROR" "Failed to detect .NET SDK version."
+        echo "[!] Could not detect .NET SDK version."
+        exit 1
+    fi
 
     if [[ ! -f "$PROJECT_PATH" ]]; then
         log_me "ERROR" "Project file was not found: $PROJECT_PATH."

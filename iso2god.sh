@@ -104,7 +104,7 @@ is_iso2god() {
         exit 1
     fi
 
-    echo "[+] iso2god is ready: $binary_file"
+    echo "[+] iso2god is ready: $SCRIPT_DIR/$binary_file"
 }
 
 extract_game_iso() {

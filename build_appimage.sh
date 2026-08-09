@@ -127,7 +127,7 @@ echo "Building AppImage..."
     "$BUILD_DIR/${APP}-${VERSION}-${ARCH}.AppImage"
 
 # ------------------------------------------------
-# Create launcher script with fallback
+# Create launcher script
 # ------------------------------------------------
 
 cat > "$LAUNCHER_SCRIPT" <<EOF

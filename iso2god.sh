@@ -6,52 +6,105 @@
 
 set -Eeuo pipefail
 
-VERSION="0.1.0"
+VERSION="0.1.1"
 AUTHOR="TWFkZTJGbGV4"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ISO2GOD="./iso2god"
+ISO2GOD="$SCRIPT_DIR/iso2god"
+
+get_arch_asset_name() {
+    local arch uname_os asset=""
+    arch="$(uname -m)"
+    uname_os="$(uname -s | tr '[:upper:]' '[:lower:]')"
+
+    if [[ "$uname_os" == "linux" ]]; then
+        if [[ "$arch" == "x86_64" ]]; then
+            asset="iso2god-x86_64-linux"
+        elif [[ "$arch" == "aarch64" || "$arch" == "arm64" ]]; then
+            asset="iso2god-aarch64-linux"
+        fi
+    elif [[ "$uname_os" == "darwin" ]]; then
+        if [[ "$arch" == "x86_64" ]]; then
+            asset="iso2god-x86_64-macos"
+        elif [[ "$arch" == "arm64" || "$arch" == "aarch64" ]]; then
+            asset="iso2god-aarch64-macos"
+        fi
+    elif [[ "$uname_os" =~ mingw|msys|cygwin ]]; then
+        if [[ "$arch" == "x86_64" ]]; then
+            asset="iso2god-x86_64-windows.exe"
+        fi
+    fi
+
+    echo "$asset"
+}
 
 is_iso2god() {
-    if command -v "$ISO2GOD" &>/dev/null; then
-        echo "[+] Found iso2god executable in PATH.."
+    local asset_name binary_file download_url tmp_file
+
+    asset_name="$(get_arch_asset_name)"
+    if [[ -z "$asset_name" ]]; then
+        echo "[ERROR] Unable to determine suitable iso2god binary for this architecture ($(uname -m), $(uname -s))."
+        exit 1
+    fi
+
+    if [[ "$asset_name" == *.exe ]]; then
+        ISO2GOD="$SCRIPT_DIR/iso2god.exe"
+    else
+        ISO2GOD="$SCRIPT_DIR/iso2god"
+    fi
+
+    if [[ -x "$ISO2GOD" ]]; then
+        echo "[+] Found iso2god executable in script directory."
         return 0
     fi
 
-    if [[ -x "$SCRIPT_DIR/iso2god" ]]; then
-        echo "[+] Found iso2god executable in tree.."
+    if command -v iso2god &>/dev/null; then
+        ISO2GOD="$(command -v iso2god)"
+        echo "[+] Found iso2god executable in PATH."
         return 0
     fi
 
-    echo "[*] iso2god-rs not found. Downloading..."
-    ZIP_URL="https://github.com/iliazeus/iso2god-rs/releases/latest/download/iso2god-x86_64-unknown-linux-gnu.zip"
-    ZIP_FILE="iso2god.zip"
-
-    cd "$SCRIPT_DIR" || exit 1
+    echo "[!] iso2god-rs not found. Downloading latest release..."
+    echo "[i] Platform asset: $asset_name"
 
     if ! command -v curl &>/dev/null; then
-        echo "[ERROR] curl is required to download iso2god, but not found."
+        echo "[ERROR] curl is required to download iso2god, but was not found."
         exit 1
     fi
 
-    curl -L -o "$ZIP_FILE" "$ZIP_URL" || {
+    binary_file="$(basename "$ISO2GOD")"
+    download_url="https://github.com/iliazeus/iso2god-rs/releases/latest/download/$asset_name"
+    tmp_file="$(mktemp "$SCRIPT_DIR/.iso2god-download.XXXXXX")"
+
+    echo "[*] Downloading latest iso2god-rs binary..."
+
+    if ! curl --fail --location --retry 3 --retry-all-errors --connect-timeout 10 --output "$tmp_file" "$download_url"; then
+        rm -f "$tmp_file"
         echo "[ERROR] Download failed."
-        exit 1
-    }
-
-    if ! command -v unzip &>/dev/null; then
-        echo "[ERROR] unzip is required to extract iso2god, but not found."
+        echo "[ERROR] URL: $download_url"
         exit 1
     fi
 
-    unzip -o "$ZIP_FILE" -d "$SCRIPT_DIR" || {
-        echo "[ERROR] Extraction failed."
+    if [[ ! -s "$tmp_file" ]]; then
+        rm -f "$tmp_file"
+        echo "[ERROR] Download completed but the file is empty."
         exit 1
-    }
+    fi
 
-    chmod +x "$SCRIPT_DIR/iso2god"
-    rm -f "$ZIP_FILE"
-    echo "[+] iso2god is ready."
+    if ! mv -f "$tmp_file" "$ISO2GOD"; then
+        rm -f "$tmp_file"
+        echo "[ERROR] Failed to install downloaded binary: $ISO2GOD"
+        exit 1
+    fi
+
+    chmod +x "$ISO2GOD"
+
+    if [[ ! -x "$ISO2GOD" ]]; then
+        echo "[ERROR] Downloaded iso2god binary is not executable."
+        exit 1
+    fi
+
+    echo "[+] iso2god is ready: $binary_file"
 }
 
 extract_game_iso() {
@@ -60,10 +113,17 @@ extract_game_iso() {
         exit 1
     fi
 
-    THREADS="${1:-4}" # Default to 4 threads
-    GAME_ISO="$2"
-    OUTDIR="$3"
-
+    # default threads to 4
+    if [[ "$1" =~ ^[0-9]+$ ]]; then
+        THREADS="$1"
+        GAME_ISO="$2"
+        OUTDIR="$3"
+        shift
+    else
+        THREADS="4"
+        GAME_ISO="$1"
+        OUTDIR="$2"
+    fi
 
     if [[ -z "$GAME_ISO" || -z "$OUTDIR" ]]; then
         echo "Usage: $0 [thread_count] <game.iso> <output-dir>"

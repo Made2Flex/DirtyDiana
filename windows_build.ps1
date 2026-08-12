@@ -77,6 +77,7 @@ if (-not $clExists) {
     $vcBuildToolsResult = winget install --id Microsoft.VisualStudio.2022.BuildTools --accept-package-agreements --accept-source-agreements
     if ($LASTEXITCODE -ne 0) {
         Write-Error "Visual C++ Build Tools install failed (winget exited with error). Please install manually from https://visualstudio.microsoft.com/visual-cpp-build-tools/"
+        Write-Error "You may also try restarting the system."
         exit 1
     }
 
@@ -95,15 +96,25 @@ if (-not $clExists) {
 }
 
 # Build the project
-Write-Host "Building the project with dotnet..."
-$buildResult = dotnet build -c Release -r win-x64 DirtyDiana/DirtyDiana.csproj
-if ($LASTEXITCODE -ne 0) {
-    Write-Error "dotnet build failed."
-    exit 1
-}
-
-Write-Host "Publishing project binaries..."
-$publishResult = dotnet publish -c Release -r win-x64 DirtyDiana/DirtyDiana.csproj -o publish
+Write-Host "Building the project with dotnet (Release, Trim enabled, ReadyToRun, no PDBs, single file)..."
+$publishArgs = @(
+    'publish'
+    '-c', 'Release'
+    '-r', 'win-x64'
+    '-p:PublishTrimmed=true'                # remove unused ILLinker code
+    '-p:PublishReadyToRun=true'
+    '-p:PublishSingleFile=true'
+    '-p:IncludeNativeLibrariesForSelfExtract=false'  # dont pack
+    '-p:EnableCompressionInSingleFile=true' # compress embedded files
+    '-p:DebugType=None'                     # omit debug symbols
+    '-p:DebugSymbols=false'
+    '-p:EnableAssemblyLoadContextUnload=false' # disables features that prevent trimming
+    '-p:InvariantGlobalization=true'        # reduce globalization support
+    '-o', 'publish'
+    '--nologo'
+    'DirtyDiana/DirtyDiana.csproj'
+)
+$buildResult = dotnet @publishArgs
 if ($LASTEXITCODE -ne 0) {
     Write-Error "dotnet publish failed."
     exit 1
